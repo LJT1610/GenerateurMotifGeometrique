@@ -12,8 +12,8 @@ def main():
 
     # Configuration Turtle (fenêtre minuscule et hors écran)
     screen = turtle.Screen()
-    screen.setup(width=1, height=1, startx=-2000, starty=-2000)  # Place la fenêtre hors de l'écran
-    screen.bgcolor("white")
+    screen.setup(width=500, height=500, startx=-2000, starty=-2000)
+    screen.bgcolor("black")  # Fond noir au lieu de blanc
     screen.tracer(0)
 
     t = turtle.Turtle()
@@ -39,13 +39,19 @@ def main():
     screen.update()
     time.sleep(0.2)  # Court délai pour assurer le rendu
 
-    # Capture du canvas
+    # Capture du canvas avec fond noir
     canvas = screen.getcanvas()
     ps_data = canvas.postscript(colormode='color')
 
-    # Conversion en PNG
+    # Conversion en PNG avec fond noir
     img = Image.open(io.BytesIO(ps_data.encode('utf-8')))
-    img.save('output.png', 'PNG')
+    # Créer une image avec fond noir
+    black_bg = Image.new('RGB', img.size, 'black')
+    if img.mode == 'RGBA':
+        black_bg.paste(img, mask=img.split()[-1])
+    else:
+        black_bg.paste(img)
+    black_bg.save('output.png', 'PNG')
 
     # Fermeture propre
     screen.bye()

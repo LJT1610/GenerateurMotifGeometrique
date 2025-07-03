@@ -1,103 +1,253 @@
-import Image from "next/image";
+"use client"
+import type React from "react"
+import { useState } from "react"
+import Link from "next/link"
+import { Download, ImageIcon, Loader2, Palette } from "lucide-react"
 
-export default function Home() {
+const GeometricPatternGenerator = () => {
+  const [params, setParams] = useState({
+    sides: 5,
+    depth: 10,
+    size: 100,
+    angle: 20,
+    color: "#0070f3",
+  })
+
+  const [imgSrc, setImgSrc] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const handleInputChange = (name: string, value: number) => {
+    setParams((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setParams((prev) => ({
+      ...prev,
+      color: e.target.value,
+    }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setImgSrc(null)
+    setLoading(true)
+
+    try {
+      const response = await fetch("http://localhost:8080/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+      })
+
+      if (!response.ok) {
+        let errorMsg = "Erreur serveur"
+        try {
+          const errorData = await response.json()
+          errorMsg = errorData.error || errorMsg
+        } catch {
+          errorMsg = `Erreur ${response.status}: ${response.statusText}`
+        }
+        throw new Error(errorMsg)
+      }
+
+      const result = await response.json()
+      setImgSrc(result.image)
+
+      // Sauvegarder dans le localStorage
+      const storedImages = JSON.parse(localStorage.getItem("generatedImages") || "[]")
+      storedImages.push(result.image)
+      localStorage.setItem("generatedImages", JSON.stringify(storedImages))
+    } catch (err: any) {
+      setError(err.message || "Échec de la connexion")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-gradient p-4">
+      <div className="container container-lg">
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Générateur de Motifs Géométriques</h1>
+          <p className="text-slate-600">Créez des motifs géométriques uniques avec des paramètres personnalisables</p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        <div className="main-grid">
+          {/* Panneau de contrôle */}
+          <div className="card h-fit">
+            <div className="card-header">
+              <div className="card-title flex items-center gap-2">
+                <Palette className="h-5 w-5" />
+                Paramètres du motif
+              </div>
+              <div className="card-description">Ajustez les paramètres pour créer votre motif géométrique</div>
+            </div>
+            <div className="card-content">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <FormField
+                  label="Nombre de côtés"
+                  description="3-12"
+                  value={params.sides}
+                  min={3}
+                  max={12}
+                  onChange={(value) => handleInputChange("sides", value)}
+                />
+
+                <FormField
+                  label="Profondeur"
+                  description="1-50"
+                  value={params.depth}
+                  min={1}
+                  max={50}
+                  onChange={(value) => handleInputChange("depth", value)}
+                />
+
+                <FormField
+                  label="Taille initiale"
+                  description="10-300"
+                  value={params.size}
+                  min={10}
+                  max={300}
+                  onChange={(value) => handleInputChange("size", value)}
+                />
+
+                <FormField
+                  label="Angle"
+                  description="0-360°"
+                  value={params.angle}
+                  min={0}
+                  max={360}
+                  onChange={(value) => handleInputChange("angle", value)}
+                  suffix="°"
+                />
+
+                <div className="space-y-2">
+                  <label className="label" htmlFor="color">
+                    Couleur
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      id="color"
+                      type="color"
+                      value={params.color}
+                      onChange={handleColorChange}
+                      className="input w-16 h-10 p-1 cursor-pointer"
+                    />
+                    <div className="badge font-mono">{params.color}</div>
+                  </div>
+                </div>
+
+                <div className="separator"></div>
+
+                <button type="submit" disabled={loading} className="btn btn-primary btn-lg w-full">
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Génération en cours...
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon className="mr-2 h-4 w-4" />
+                      Générer le motif
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* Zone d'affichage */}
+          <div className="space-y-4">
+            {error && (
+              <div className="alert alert-destructive">
+                <strong>Erreur :</strong> {error}
+              </div>
+            )}
+
+            {imgSrc && (
+              <div className="card">
+                <div className="card-header">
+                  <div className="card-title">Motif généré</div>
+                  <div className="card-description">Votre motif géométrique personnalisé</div>
+                </div>
+                <div className="card-content">
+                  <div className="flex justify-center mb-4">
+                    <img
+                      src={imgSrc || "/placeholder.svg"}
+                      alt="Motif géométrique"
+                      className="generated-image img-responsive"
+                    />
+                  </div>
+                  <a href={imgSrc} download="motif_geometrique.png" className="btn btn-primary w-full">
+                    <Download className="mr-2 h-4 w-4" />
+                    Télécharger l'image
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {!imgSrc && !loading && (
+              <div className="card card-dashed">
+                <div className="card-content flex flex-col items-center justify-center py-12">
+                  <ImageIcon className="h-12 w-12 text-slate-400 mb-4" />
+                  <p className="text-slate-500 text-center">Votre motif généré apparaîtra ici</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-8 text-center">
+          <Link href="/bibliotheque" className="nav-link">
+            Voir la bibliothèque d'images
+          </Link>
+        </div>
+      </div>
     </div>
-  );
+  )
 }
+
+const FormField = ({
+  label,
+  description,
+  value,
+  min,
+  max,
+  onChange,
+  suffix = "",
+}: {
+  label: string
+  description: string
+  value: number
+  min: number
+  max: number
+  onChange: (value: number) => void
+  suffix?: string
+}) => (
+  <div className="space-y-3">
+    <div className="flex items-center justify-between">
+      <label className="label">{label}</label>
+      <div className="badge">
+        {value}
+        {suffix}
+      </div>
+    </div>
+    <input
+      type="number"
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+      min={min}
+      max={max}
+      className="input w-full"
+      placeholder={`${min}-${max}`}
+    />
+    <p className="text-xs text-slate-500">{description}</p>
+  </div>
+)
+
+export default GeometricPatternGenerator
