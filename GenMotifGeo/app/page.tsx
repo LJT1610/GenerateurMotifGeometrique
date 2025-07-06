@@ -1,13 +1,15 @@
 "use client"
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Download, ImageIcon, Loader2, Palette } from "lucide-react"
 
 const GeometricPatternGenerator = () => {
   const [mode, setMode] = useState<"geometric" | "fractal" | "spiral">("geometric")
+  const [fractalType, setFractalType] = useState<"tree" | "koch" | "sierpinski" | "dragon">("tree")
   const [params, setParams] = useState({
     mode: "geometric",
+    fractal_type: "tree",
     sides: 5,
     depth: 10,
     size: 100,
@@ -25,6 +27,15 @@ const GeometricPatternGenerator = () => {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  const [favorites, setFavorites] = useState<any[]>([])
+  const [showFavorites, setShowFavorites] = useState(false)
+  const [showSymmetry, setShowSymmetry] = useState(false)
+  const [symmetryOptions, setSymmetryOptions] = useState({
+    mirror: false,
+    rotation: 1,
+    kaleidoscope: false,
+  })
+
   const handleInputChange = (name: string, value: number) => {
     setParams((prev) => ({
       ...prev,
@@ -37,12 +48,52 @@ const GeometricPatternGenerator = () => {
     setParams((prev) => ({ ...prev, mode: newMode }))
   }
 
+  const handleFractalTypeChange = (newType: "tree" | "koch" | "sierpinski" | "dragon") => {
+    setFractalType(newType)
+    setParams((prev) => ({ ...prev, fractal_type: newType }))
+  }
+
   const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setParams((prev) => ({
       ...prev,
       color: e.target.value,
     }))
   }
+
+  const saveFavorite = () => {
+    const favorite = {
+      id: Date.now(),
+      name: `${mode === "geometric" ? "Motif" : mode === "fractal" ? getFractalName() : "Spirale"} ${Date.now()}`,
+      params: { ...params },
+      mode,
+      fractalType: mode === "fractal" ? fractalType : undefined,
+      timestamp: new Date().toLocaleString(),
+    }
+
+    const updatedFavorites = [...favorites, favorite]
+    setFavorites(updatedFavorites)
+    localStorage.setItem("favorites", JSON.stringify(updatedFavorites))
+  }
+
+  const loadFavorite = (favorite: any) => {
+    setMode(favorite.mode)
+    if (favorite.fractalType) {
+      setFractalType(favorite.fractalType)
+    }
+    setParams(favorite.params)
+    setShowFavorites(false)
+  }
+
+  const deleteFavorite = (id: number) => {
+    const updatedFavorites = favorites.filter((f) => f.id !== id)
+    setFavorites(updatedFavorites)
+    localStorage.setItem("favorites", JSON.stringify(updatedFavorites))
+  }
+
+  useEffect(() => {
+    const storedFavorites = JSON.parse(localStorage.getItem("favorites") || "[]")
+    setFavorites(storedFavorites)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,10 +102,15 @@ const GeometricPatternGenerator = () => {
     setLoading(true)
 
     try {
+      const submitParams = {
+        ...params,
+        symmetry: showSymmetry ? symmetryOptions : undefined,
+      }
+
       const response = await fetch("http://localhost:8080/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(params),
+        body: JSON.stringify(submitParams),
       })
 
       if (!response.ok) {
@@ -79,6 +135,21 @@ const GeometricPatternGenerator = () => {
       setError(err.message || "Échec de la connexion")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const getFractalName = () => {
+    switch (fractalType) {
+      case "tree":
+        return "Arbre"
+      case "koch":
+        return "Flocon de Koch"
+      case "sierpinski":
+        return "Triangle de Sierpinski"
+      case "dragon":
+        return "Dragon de Heighway"
+      default:
+        return "Fractale"
     }
   }
 
@@ -129,6 +200,43 @@ const GeometricPatternGenerator = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Sélecteur de type de fractale */}
+                {mode === "fractal" && (
+                  <div className="space-y-2">
+                    <label className="label">Type de fractale</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleFractalTypeChange("tree")}
+                        className={`btn ${fractalType === "tree" ? "btn-primary" : "btn-outline"} text-xs`}
+                      >
+                        Arbre
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleFractalTypeChange("koch")}
+                        className={`btn ${fractalType === "koch" ? "btn-primary" : "btn-outline"} text-xs`}
+                      >
+                        Koch
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleFractalTypeChange("sierpinski")}
+                        className={`btn ${fractalType === "sierpinski" ? "btn-primary" : "btn-outline"} text-xs`}
+                      >
+                        Sierpinski
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleFractalTypeChange("dragon")}
+                        className={`btn ${fractalType === "dragon" ? "btn-primary" : "btn-outline"} text-xs`}
+                      >
+                        Dragon
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="separator"></div>
 
@@ -182,31 +290,35 @@ const GeometricPatternGenerator = () => {
                       onChange={(value) => handleInputChange("iterations", value)}
                     />
                     <FormField
-                      label="Taille initiale"
-                      description="50-200"
+                      label="Taille"
+                      description="50-300"
                       value={params.size}
                       min={50}
-                      max={200}
+                      max={300}
                       onChange={(value) => handleInputChange("size", value)}
                     />
-                    <FormField
-                      label="Réduction"
-                      description="30-90%"
-                      value={Math.round(params.reduction * 100)}
-                      min={30}
-                      max={90}
-                      onChange={(value) => handleInputChange("reduction", value / 100)}
-                      suffix="%"
-                    />
-                    <FormField
-                      label="Angle"
-                      description="0-180°"
-                      value={params.angle}
-                      min={0}
-                      max={180}
-                      onChange={(value) => handleInputChange("angle", value)}
-                      suffix="°"
-                    />
+                    {fractalType === "tree" && (
+                      <>
+                        <FormField
+                          label="Réduction"
+                          description="30-90%"
+                          value={Math.round(params.reduction * 100)}
+                          min={30}
+                          max={90}
+                          onChange={(value) => handleInputChange("reduction", value / 100)}
+                          suffix="%"
+                        />
+                        <FormField
+                          label="Angle"
+                          description="0-180°"
+                          value={params.angle}
+                          min={0}
+                          max={180}
+                          onChange={(value) => handleInputChange("angle", value)}
+                          suffix="°"
+                        />
+                      </>
+                    )}
                   </>
                 )}
 
@@ -267,6 +379,100 @@ const GeometricPatternGenerator = () => {
 
                 <div className="separator"></div>
 
+                {/* Boutons d'actions */}
+                <div className="flex gap-2">
+                  <button type="button" onClick={saveFavorite} className="btn btn-outline flex-1 text-xs">
+                    💾 Sauver
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowFavorites(!showFavorites)}
+                    className="btn btn-outline flex-1 text-xs"
+                  >
+                    ⭐ Favoris
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSymmetry(!showSymmetry)}
+                    className={`btn ${showSymmetry ? "btn-primary" : "btn-outline"} flex-1 text-xs`}
+                  >
+                    🔄 Symétrie
+                  </button>
+                </div>
+
+                {/* Panel des favoris */}
+                {showFavorites && (
+                  <div className="space-y-2">
+                    <label className="label">Favoris sauvegardés</label>
+                    <div className="max-h-32 overflow-y-auto space-y-1">
+                      {favorites.length === 0 ? (
+                        <p className="text-xs text-slate-500">Aucun favori sauvegardé</p>
+                      ) : (
+                        favorites.map((fav) => (
+                          <div key={fav.id} className="flex items-center gap-2 p-2 bg-slate-800 rounded">
+                            <button
+                              type="button"
+                              onClick={() => loadFavorite(fav)}
+                              className="flex-1 text-left text-xs text-slate-300 hover:text-white"
+                            >
+                              {fav.name}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteFavorite(fav.id)}
+                              className="text-red-400 hover:text-red-300 text-xs"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Panel des symétries */}
+                {showSymmetry && (
+                  <div className="space-y-3">
+                    <label className="label">Options de symétrie</label>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={symmetryOptions.mirror}
+                          onChange={(e) => setSymmetryOptions((prev) => ({ ...prev, mirror: e.target.checked }))}
+                          className="rounded"
+                        />
+                        Effet miroir
+                      </label>
+                      <div className="space-y-1">
+                        <label className="text-xs">Rotations multiples: {symmetryOptions.rotation}</label>
+                        <input
+                          type="range"
+                          min="1"
+                          max="8"
+                          value={symmetryOptions.rotation}
+                          onChange={(e) =>
+                            setSymmetryOptions((prev) => ({ ...prev, rotation: Number.parseInt(e.target.value) }))
+                          }
+                          className="w-full"
+                        />
+                      </div>
+                      <label className="flex items-center gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={symmetryOptions.kaleidoscope}
+                          onChange={(e) => setSymmetryOptions((prev) => ({ ...prev, kaleidoscope: e.target.checked }))}
+                          className="rounded"
+                        />
+                        Effet kaléidoscope
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                <div className="separator"></div>
+
                 <button type="submit" disabled={loading} className="btn btn-primary btn-lg w-full">
                   {loading ? (
                     <>
@@ -276,7 +482,7 @@ const GeometricPatternGenerator = () => {
                   ) : (
                     <>
                       <ImageIcon className="mr-2 h-4 w-4" />
-                      Générer {mode === "geometric" ? "le motif" : mode === "fractal" ? "la fractale" : "la spirale"}
+                      Générer {mode === "geometric" ? "le motif" : mode === "fractal" ? getFractalName() : "la spirale"}
                     </>
                   )}
                 </button>
@@ -296,7 +502,7 @@ const GeometricPatternGenerator = () => {
               <div className="card">
                 <div className="card-header">
                   <div className="card-title">
-                    {mode === "geometric" ? "Motif" : mode === "fractal" ? "Fractale" : "Spirale"} généré
+                    {mode === "geometric" ? "Motif" : mode === "fractal" ? getFractalName() : "Spirale"} généré
                     {mode === "fractal" ? "e" : mode === "spiral" ? "e" : ""}
                   </div>
                   <div className="card-description">Votre création personnalisée</div>
@@ -305,11 +511,15 @@ const GeometricPatternGenerator = () => {
                   <div className="flex justify-center mb-4">
                     <img
                       src={imgSrc || "/placeholder.svg"}
-                      alt={`${mode === "geometric" ? "Motif géométrique" : mode === "fractal" ? "Fractale" : "Spirale"}`}
+                      alt={`${mode === "geometric" ? "Motif géométrique" : mode === "fractal" ? getFractalName() : "Spirale"}`}
                       className="generated-image img-responsive"
                     />
                   </div>
-                  <a href={imgSrc} download={`${mode}-${Date.now()}.png`} className="btn btn-primary w-full">
+                  <a
+                    href={imgSrc}
+                    download={`${mode}-${fractalType || "pattern"}-${Date.now()}.png`}
+                    className="btn btn-primary w-full"
+                  >
                     <Download className="mr-2 h-4 w-4" />
                     Télécharger l'image
                   </a>
@@ -330,9 +540,12 @@ const GeometricPatternGenerator = () => {
           </div>
         </div>
 
-        <div className="mt-8 text-center">
+        <div className="mt-8 text-center flex gap-4 justify-center">
           <Link href="/bibliotheque" className="nav-link">
             Voir la bibliothèque d'images
+          </Link>
+          <Link href="/superposition" className="nav-link">
+            Superposer des motifs
           </Link>
         </div>
       </div>
