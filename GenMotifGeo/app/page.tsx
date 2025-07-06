@@ -5,12 +5,20 @@ import Link from "next/link"
 import { Download, ImageIcon, Loader2, Palette } from "lucide-react"
 
 const GeometricPatternGenerator = () => {
+  const [mode, setMode] = useState<"geometric" | "fractal" | "spiral">("geometric")
   const [params, setParams] = useState({
+    mode: "geometric",
     sides: 5,
     depth: 10,
     size: 100,
     angle: 20,
     color: "#0070f3",
+    // Paramètres fractales
+    iterations: 4,
+    reduction: 0.7,
+    // Paramètres spirales
+    turns: 10,
+    increment: 5,
   })
 
   const [imgSrc, setImgSrc] = useState<string | null>(null)
@@ -22,6 +30,11 @@ const GeometricPatternGenerator = () => {
       ...prev,
       [name]: value,
     }))
+  }
+
+  const handleModeChange = (newMode: "geometric" | "fractal" | "spiral") => {
+    setMode(newMode)
+    setParams((prev) => ({ ...prev, mode: newMode }))
   }
 
   const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,7 +87,7 @@ const GeometricPatternGenerator = () => {
       <div className="container container-lg">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Générateur de Motifs Géométriques</h1>
-          <p className="text-slate-600">Créez des motifs géométriques uniques avec des paramètres personnalisables</p>
+          <p className="text-slate-600">Créez des motifs géométriques, fractales et spirales uniques</p>
         </div>
 
         <div className="main-grid">
@@ -83,49 +96,159 @@ const GeometricPatternGenerator = () => {
             <div className="card-header">
               <div className="card-title flex items-center gap-2">
                 <Palette className="h-5 w-5" />
-                Paramètres du motif
+                Paramètres de génération
               </div>
-              <div className="card-description">Ajustez les paramètres pour créer votre motif géométrique</div>
+              <div className="card-description">Choisissez votre mode et ajustez les paramètres</div>
             </div>
             <div className="card-content">
               <form onSubmit={handleSubmit} className="space-y-4">
-                <FormField
-                  label="Nombre de côtés"
-                  description="3-12"
-                  value={params.sides}
-                  min={3}
-                  max={12}
-                  onChange={(value) => handleInputChange("sides", value)}
-                />
+                {/* Sélecteur de mode */}
+                <div className="space-y-2">
+                  <label className="label">Mode de génération</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleModeChange("geometric")}
+                      className={`btn ${mode === "geometric" ? "btn-primary" : "btn-outline"} flex-1 text-xs`}
+                    >
+                      Géométrique
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleModeChange("fractal")}
+                      className={`btn ${mode === "fractal" ? "btn-primary" : "btn-outline"} flex-1 text-xs`}
+                    >
+                      Fractale
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleModeChange("spiral")}
+                      className={`btn ${mode === "spiral" ? "btn-primary" : "btn-outline"} flex-1 text-xs`}
+                    >
+                      Spirale
+                    </button>
+                  </div>
+                </div>
 
-                <FormField
-                  label="Profondeur"
-                  description="1-50"
-                  value={params.depth}
-                  min={1}
-                  max={50}
-                  onChange={(value) => handleInputChange("depth", value)}
-                />
+                <div className="separator"></div>
 
-                <FormField
-                  label="Taille initiale"
-                  description="10-300"
-                  value={params.size}
-                  min={10}
-                  max={300}
-                  onChange={(value) => handleInputChange("size", value)}
-                />
+                {/* Paramètres selon le mode */}
+                {mode === "geometric" && (
+                  <>
+                    <FormField
+                      label="Nombre de côtés"
+                      description="3-12"
+                      value={params.sides}
+                      min={3}
+                      max={12}
+                      onChange={(value) => handleInputChange("sides", value)}
+                    />
+                    <FormField
+                      label="Profondeur"
+                      description="1-50"
+                      value={params.depth}
+                      min={1}
+                      max={50}
+                      onChange={(value) => handleInputChange("depth", value)}
+                    />
+                    <FormField
+                      label="Taille initiale"
+                      description="10-300"
+                      value={params.size}
+                      min={10}
+                      max={300}
+                      onChange={(value) => handleInputChange("size", value)}
+                    />
+                    <FormField
+                      label="Angle"
+                      description="0-360°"
+                      value={params.angle}
+                      min={0}
+                      max={360}
+                      onChange={(value) => handleInputChange("angle", value)}
+                      suffix="°"
+                    />
+                  </>
+                )}
 
-                <FormField
-                  label="Angle"
-                  description="0-360°"
-                  value={params.angle}
-                  min={0}
-                  max={360}
-                  onChange={(value) => handleInputChange("angle", value)}
-                  suffix="°"
-                />
+                {mode === "fractal" && (
+                  <>
+                    <FormField
+                      label="Itérations"
+                      description="1-8"
+                      value={params.iterations}
+                      min={1}
+                      max={8}
+                      onChange={(value) => handleInputChange("iterations", value)}
+                    />
+                    <FormField
+                      label="Taille initiale"
+                      description="50-200"
+                      value={params.size}
+                      min={50}
+                      max={200}
+                      onChange={(value) => handleInputChange("size", value)}
+                    />
+                    <FormField
+                      label="Réduction"
+                      description="30-90%"
+                      value={Math.round(params.reduction * 100)}
+                      min={30}
+                      max={90}
+                      onChange={(value) => handleInputChange("reduction", value / 100)}
+                      suffix="%"
+                    />
+                    <FormField
+                      label="Angle"
+                      description="0-180°"
+                      value={params.angle}
+                      min={0}
+                      max={180}
+                      onChange={(value) => handleInputChange("angle", value)}
+                      suffix="°"
+                    />
+                  </>
+                )}
 
+                {mode === "spiral" && (
+                  <>
+                    <FormField
+                      label="Nombre de tours"
+                      description="3-20"
+                      value={params.turns}
+                      min={3}
+                      max={20}
+                      onChange={(value) => handleInputChange("turns", value)}
+                    />
+                    <FormField
+                      label="Taille initiale"
+                      description="5-50"
+                      value={params.size}
+                      min={5}
+                      max={50}
+                      onChange={(value) => handleInputChange("size", value)}
+                    />
+                    <FormField
+                      label="Incrément"
+                      description="1-20"
+                      value={params.increment}
+                      min={1}
+                      max={20}
+                      onChange={(value) => handleInputChange("increment", value)}
+                    />
+                    <FormField
+                      label="Angle par étape"
+                      description="1-45°"
+                      value={params.angle}
+                      min={1}
+                      max={45}
+                      onChange={(value) => handleInputChange("angle", value)}
+                      suffix="°"
+                    />
+                  </>
+                )}
+
+                {/* Couleur commune à tous les modes */}
                 <div className="space-y-2">
                   <label className="label" htmlFor="color">
                     Couleur
@@ -153,7 +276,7 @@ const GeometricPatternGenerator = () => {
                   ) : (
                     <>
                       <ImageIcon className="mr-2 h-4 w-4" />
-                      Générer le motif
+                      Générer {mode === "geometric" ? "le motif" : mode === "fractal" ? "la fractale" : "la spirale"}
                     </>
                   )}
                 </button>
@@ -172,18 +295,21 @@ const GeometricPatternGenerator = () => {
             {imgSrc && (
               <div className="card">
                 <div className="card-header">
-                  <div className="card-title">Motif généré</div>
-                  <div className="card-description">Votre motif géométrique personnalisé</div>
+                  <div className="card-title">
+                    {mode === "geometric" ? "Motif" : mode === "fractal" ? "Fractale" : "Spirale"} généré
+                    {mode === "fractal" ? "e" : mode === "spiral" ? "e" : ""}
+                  </div>
+                  <div className="card-description">Votre création personnalisée</div>
                 </div>
                 <div className="card-content">
                   <div className="flex justify-center mb-4">
                     <img
                       src={imgSrc || "/placeholder.svg"}
-                      alt="Motif géométrique"
+                      alt={`${mode === "geometric" ? "Motif géométrique" : mode === "fractal" ? "Fractale" : "Spirale"}`}
                       className="generated-image img-responsive"
                     />
                   </div>
-                  <a href={imgSrc} download="motif_geometrique.png" className="btn btn-primary w-full">
+                  <a href={imgSrc} download={`${mode}-${Date.now()}.png`} className="btn btn-primary w-full">
                     <Download className="mr-2 h-4 w-4" />
                     Télécharger l'image
                   </a>
@@ -195,7 +321,9 @@ const GeometricPatternGenerator = () => {
               <div className="card card-dashed">
                 <div className="card-content flex flex-col items-center justify-center py-12">
                   <ImageIcon className="h-12 w-12 text-slate-400 mb-4" />
-                  <p className="text-slate-500 text-center">Votre motif généré apparaîtra ici</p>
+                  <p className="text-slate-500 text-center">
+                    Votre {mode === "geometric" ? "motif" : mode === "fractal" ? "fractale" : "spirale"} apparaîtra ici
+                  </p>
                 </div>
               </div>
             )}
