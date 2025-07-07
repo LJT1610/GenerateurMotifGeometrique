@@ -9,13 +9,58 @@ import base64
 import io
 import threading
 import sys
-from PIL import Image
+from PIL import Image, ImageFilter, ImageEnhance, ImageDraw
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Sémaphore pour limiter les générations concurrentes
 generation_semaphore = threading.Semaphore(3)
+
+def apply_glow_effect(img, intensity=0.5):
+    """Applique un effet glow/néon à l'image"""
+    try:
+        # Convertir en RGBA si nécessaire
+        if img.mode != 'RGBA':
+            img = img.convert('RGBA')
+        
+        # Créer une copie pour l'effet glow
+        glow_img = img.copy()
+        
+        # Appliquer plusieurs passes de flou avec différentes intensités
+        glow_layers = []
+        
+        # Première couche - flou léger
+        glow1 = glow_img.filter(ImageFilter.GaussianBlur(radius=2))
+        enhancer1 = ImageEnhance.Brightness(glow1)
+        glow1 = enhancer1.enhance(1.2 + intensity * 0.3)
+        glow_layers.append(glow1)
+        
+        # Deuxième couche - flou moyen
+        glow2 = glow_img.filter(ImageFilter.GaussianBlur(radius=5))
+        enhancer2 = ImageEnhance.Brightness(glow2)
+        glow2 = enhancer2.enhance(1.1 + intensity * 0.4)
+        glow_layers.append(glow2)
+        
+        # Troisième couche - flou fort
+        glow3 = glow_img.filter(ImageFilter.GaussianBlur(radius=10))
+        enhancer3 = ImageEnhance.Brightness(glow3)
+        glow3 = enhancer3.enhance(1.0 + intensity * 0.5)
+        glow_layers.append(glow3)
+        
+        # Combiner toutes les couches
+        result = img.copy()
+        for glow_layer in reversed(glow_layers):  # Commencer par les plus floues
+            result = Image.alpha_composite(result, glow_layer)
+        
+        # Ajouter l'image originale par-dessus
+        result = Image.alpha_composite(result, img)
+        
+        return result
+        
+    except Exception as e:
+        logging.error(f"Erreur lors de l'application de l'effet glow: {str(e)}")
+        return img
 
 def generate_pattern_with_params(params):
     """Génère un motif via un sous-processus isolé avec tous les paramètres"""
@@ -45,9 +90,50 @@ def generate_pattern_with_params(params):
         # Lire l'image générée
         if not os.path.exists('output.png'):
             raise Exception("Fichier de sortie non généré")
+        
+        # Charger l'image
+        img = Image.open('output.png')
+        
+        # Appliquer la couleur de fond personnalisée
+        background_color = params.get('background_color', '#000000')
+        if background_color != '#000000':  # Si ce n'est pas noir (défaut)
+            # Convertir la couleur hex en RGB
+            bg_rgb = tuple(int(background_color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
             
-        with open('output.png', 'rb') as img_file:
-            return io.BytesIO(img_file.read())
+            # Convertir l'image en RGBA pour traiter la transparence
+            if img.mode != 'RGBA':
+                img = img.convert('RGBA')
+            
+            # Créer une nouvelle image avec le fond coloré
+            new_img = Image.new('RGB', img.size, bg_rgb)
+            
+            # Remplacer le fond blanc par la transparence (pas le noir qui est le motif)
+            data = img.getdata()
+            new_data = []
+            for item in data:
+                # Si le pixel est blanc ou très clair (fond), le rendre transparent
+                if len(item) >= 3 and item[0] > 240 and item[1] > 240 and item[2] > 240:
+                    new_data.append((item[0], item[1], item[2], 0))  # Transparent
+                else:
+                    new_data.append(item if len(item) == 4 else item + (255,))  # Garder le motif opaque
+            
+            img.putdata(new_data)
+            
+            # Coller l'image avec transparence sur le nouveau fond coloré
+            new_img.paste(img, (0, 0), img)
+            img = new_img
+        
+        # Appliquer l'effet glow si demandé
+        if params.get('glow', False):
+            glow_intensity = params.get('glow_intensity', 0.5)
+            img = apply_glow_effect(img, glow_intensity)
+        
+        # Sauvegarder l'image avec effets
+        buffer = io.BytesIO()
+        img.save(buffer, format='PNG')
+        buffer.seek(0)
+        
+        return buffer
             
     except Exception as e:
         logging.error(f"Erreur: {str(e)}")
@@ -70,6 +156,12 @@ def generate_endpoint():
         
         # Paramètres communs
         color = data.get("color", "#0070f3")
+        background_color = data.get("background_color", "#000000")
+        gradient = data.get("gradient", False)
+        gradient_start = data.get("gradient_start", "#0070f3")
+        gradient_end = data.get("gradient_end", "#ff6b6b")
+        glow = data.get("glow", False)
+        glow_intensity = max(0.1, min(1.0, float(data.get("glow_intensity", 0.5))))
         
         # Validation selon le mode
         if mode == "geometric":
@@ -84,7 +176,13 @@ def generate_endpoint():
                 "depth": depth,
                 "size": size,
                 "angle": angle,
-                "color": color
+                "color": color,
+                "background_color": background_color,
+                "gradient": gradient,
+                "gradient_start": gradient_start,
+                "gradient_end": gradient_end,
+                "glow": glow,
+                "glow_intensity": glow_intensity
             }
             
         elif mode == "fractal":
@@ -97,7 +195,13 @@ def generate_endpoint():
                 "fractal_type": fractal_type,
                 "iterations": iterations,
                 "size": size,
-                "color": color
+                "color": color,
+                "background_color": background_color,
+                "gradient": gradient,
+                "gradient_start": gradient_start,
+                "gradient_end": gradient_end,
+                "glow": glow,
+                "glow_intensity": glow_intensity
             }
             
             # Paramètres spécifiques à l'arbre fractal
@@ -119,7 +223,13 @@ def generate_endpoint():
                 "size": size,
                 "increment": increment,
                 "angle": angle,
-                "color": color
+                "color": color,
+                "background_color": background_color,
+                "gradient": gradient,
+                "gradient_start": gradient_start,
+                "gradient_end": gradient_end,
+                "glow": glow,
+                "glow_intensity": glow_intensity
             }
         else:
             raise ValueError("Mode non supporté")
@@ -186,7 +296,7 @@ def combine_endpoint():
             elif blend_mode == "screen":
                 result = Image.blend(result, img_rgba, 0.7)
             elif blend_mode == "overlay":
-                result = Image.blend(result, img_rgba, 0.6)
+                result = Image.alpha_composite(result, img_rgba)
             else:  # normal
                 result = Image.alpha_composite(result, img_rgba)
         

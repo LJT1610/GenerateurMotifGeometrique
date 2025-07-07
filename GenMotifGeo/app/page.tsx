@@ -2,11 +2,12 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Download, ImageIcon, Loader2, Palette } from "lucide-react"
+import { Download, ImageIcon, Loader2, Palette, Sun, Moon } from "lucide-react"
 
 const GeometricPatternGenerator = () => {
   const [mode, setMode] = useState<"geometric" | "fractal" | "spiral">("geometric")
   const [fractalType, setFractalType] = useState<"tree" | "koch" | "sierpinski" | "dragon">("tree")
+  const [darkMode, setDarkMode] = useState(true)
   const [params, setParams] = useState({
     mode: "geometric",
     fractal_type: "tree",
@@ -21,6 +22,13 @@ const GeometricPatternGenerator = () => {
     // Paramètres spirales
     turns: 10,
     increment: 5,
+    // Nouveaux paramètres pour les effets
+    gradient: false,
+    gradient_start: "#0070f3",
+    gradient_end: "#ff6b6b",
+    glow: false,
+    glow_intensity: 0.5,
+    background_color: "#000000",
   })
 
   const [imgSrc, setImgSrc] = useState<string | null>(null)
@@ -30,11 +38,29 @@ const GeometricPatternGenerator = () => {
   const [favorites, setFavorites] = useState<any[]>([])
   const [showFavorites, setShowFavorites] = useState(false)
   const [showSymmetry, setShowSymmetry] = useState(false)
+  const [showEffects, setShowEffects] = useState(false)
   const [symmetryOptions, setSymmetryOptions] = useState({
     mirror: false,
     rotation: 1,
     kaleidoscope: false,
   })
+
+  // Gestion du thème
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme")
+    if (savedTheme) {
+      setDarkMode(savedTheme === "dark")
+    }
+  }, [])
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", darkMode ? "dark" : "light")
+    localStorage.setItem("theme", darkMode ? "dark" : "light")
+  }, [darkMode])
+
+  const toggleTheme = () => {
+    setDarkMode(!darkMode)
+  }
 
   const handleInputChange = (name: string, value: number) => {
     setParams((prev) => ({
@@ -57,6 +83,20 @@ const GeometricPatternGenerator = () => {
     setParams((prev) => ({
       ...prev,
       color: e.target.value,
+    }))
+  }
+
+  const handleGradientStartChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setParams((prev) => ({
+      ...prev,
+      gradient_start: e.target.value,
+    }))
+  }
+
+  const handleGradientEndChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setParams((prev) => ({
+      ...prev,
+      gradient_end: e.target.value,
     }))
   }
 
@@ -157,8 +197,18 @@ const GeometricPatternGenerator = () => {
     <div className="min-h-screen bg-gradient p-4">
       <div className="container container-lg">
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Générateur de Motifs Géométriques</h1>
-          <p className="text-slate-600">Créez des motifs géométriques, fractales et spirales uniques</p>
+          <div className="flex justify-between items-center mb-4">
+            <div></div>
+            <button
+              onClick={toggleTheme}
+              className="btn btn-outline p-2"
+              title={darkMode ? "Mode clair" : "Mode sombre"}
+            >
+              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
+          </div>
+          <h1 className="text-3xl font-bold text-primary mb-2">Générateur de Motifs Géométriques</h1>
+          <p className="text-secondary">Créez des motifs géométriques, fractales et spirales avec des effets avancés</p>
         </div>
 
         <div className="main-grid">
@@ -360,20 +410,127 @@ const GeometricPatternGenerator = () => {
                   </>
                 )}
 
-                {/* Couleur commune à tous les modes */}
-                <div className="space-y-2">
-                  <label className="label" htmlFor="color">
-                    Couleur
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      id="color"
-                      type="color"
-                      value={params.color}
-                      onChange={handleColorChange}
-                      className="input w-16 h-10 p-1 cursor-pointer"
-                    />
-                    <div className="badge font-mono">{params.color}</div>
+                <div className="separator"></div>
+
+                {/* Couleurs et effets */}
+                <div className="space-y-4">
+                  {/* Couleur de base ou dégradé */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <label className="label">Couleurs</label>
+                      <label className="flex items-center gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={params.gradient}
+                          onChange={(e) => setParams((prev) => ({ ...prev, gradient: e.target.checked }))}
+                          className="rounded"
+                        />
+                        Dégradé
+                      </label>
+                    </div>
+
+                    {params.gradient ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-xs text-secondary">Début</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={params.gradient_start}
+                              onChange={handleGradientStartChange}
+                              className="input w-12 h-8 p-1 cursor-pointer"
+                            />
+                            <div className="badge font-mono text-xs">{params.gradient_start}</div>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-secondary">Fin</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={params.gradient_end}
+                              onChange={handleGradientEndChange}
+                              className="input w-12 h-8 p-1 cursor-pointer"
+                            />
+                            <div className="badge font-mono text-xs">{params.gradient_end}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          value={params.color}
+                          onChange={handleColorChange}
+                          className="input w-16 h-10 p-1 cursor-pointer"
+                        />
+                        <div className="badge font-mono">{params.color}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Couleur de fond */}
+                  <div className="space-y-2">
+                    <label className="label">Couleur de fond</label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={params.background_color}
+                        onChange={(e) => setParams((prev) => ({ ...prev, background_color: e.target.value }))}
+                        className="input w-16 h-10 p-1 cursor-pointer"
+                      />
+                      <div className="badge font-mono">{params.background_color}</div>
+                      <button
+                        type="button"
+                        onClick={() => setParams((prev) => ({ ...prev, background_color: "#000000" }))}
+                        className="btn btn-outline text-xs px-2 py-1"
+                      >
+                        Noir
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setParams((prev) => ({ ...prev, background_color: "#ffffff" }))}
+                        className="btn btn-outline text-xs px-2 py-1"
+                      >
+                        Blanc
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Effet Glow */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <label className="label">Effet lumineux</label>
+                      <label className="flex items-center gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={params.glow}
+                          onChange={(e) => setParams((prev) => ({ ...prev, glow: e.target.checked }))}
+                          className="rounded"
+                        />
+                        Glow/Néon
+                      </label>
+                    </div>
+
+                    {params.glow && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs text-secondary">Intensité</label>
+                          <div className="badge text-xs">{Math.round(params.glow_intensity * 100)}%</div>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="1"
+                          step="0.1"
+                          value={params.glow_intensity}
+                          onChange={(e) =>
+                            setParams((prev) => ({ ...prev, glow_intensity: Number.parseFloat(e.target.value) }))
+                          }
+                          className="w-full"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -406,14 +563,14 @@ const GeometricPatternGenerator = () => {
                     <label className="label">Favoris sauvegardés</label>
                     <div className="max-h-32 overflow-y-auto space-y-1">
                       {favorites.length === 0 ? (
-                        <p className="text-xs text-slate-500">Aucun favori sauvegardé</p>
+                        <p className="text-xs text-muted">Aucun favori sauvegardé</p>
                       ) : (
                         favorites.map((fav) => (
-                          <div key={fav.id} className="flex items-center gap-2 p-2 bg-slate-800 rounded">
+                          <div key={fav.id} className="flex items-center gap-2 p-2 bg-secondary/20 rounded">
                             <button
                               type="button"
                               onClick={() => loadFavorite(fav)}
-                              className="flex-1 text-left text-xs text-slate-300 hover:text-white"
+                              className="flex-1 text-left text-xs text-secondary hover:text-primary"
                             >
                               {fav.name}
                             </button>
@@ -530,8 +687,8 @@ const GeometricPatternGenerator = () => {
             {!imgSrc && !loading && (
               <div className="card card-dashed">
                 <div className="card-content flex flex-col items-center justify-center py-12">
-                  <ImageIcon className="h-12 w-12 text-slate-400 mb-4" />
-                  <p className="text-slate-500 text-center">
+                  <ImageIcon className="h-12 w-12 text-muted mb-4" />
+                  <p className="text-muted text-center">
                     Votre {mode === "geometric" ? "motif" : mode === "fractal" ? "fractale" : "spirale"} apparaîtra ici
                   </p>
                 </div>
@@ -587,7 +744,7 @@ const FormField = ({
       className="input w-full"
       placeholder={`${min}-${max}`}
     />
-    <p className="text-xs text-slate-500">{description}</p>
+    <p className="text-xs text-muted">{description}</p>
   </div>
 )
 
