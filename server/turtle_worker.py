@@ -1,7 +1,7 @@
 import sys
 import json
 import turtle
-from PIL import Image
+from PIL import Image, ImageFilter
 import io
 import time
 import math
@@ -251,11 +251,11 @@ def main():
         base_color = fix_turtle_color(params["color"])
         t.color(base_color)
     
-    # Épaisseur du trait pour un meilleur effet glow
+    # Épaisseur du trait - fine par défaut, plus épaisse seulement avec glow
     if params.get("glow", False):
-        t.pensize(3)
+        t.pensize(3)  # Trait épais pour l'effet glow
     else:
-        t.pensize(2)
+        t.pensize(1)  # Trait fin par défaut (comme avant)
     
     # Positionnement selon le mode
     mode = params.get("mode", "geometric")
@@ -315,7 +315,7 @@ def main():
     # Fermeture propre
     screen.bye()
     
-    # Traitement de l'image avec PIL
+    # Traitement amélioré de l'image avec PIL
     try:
         # Lire le fichier EPS et le convertir
         from PIL import Image
@@ -323,7 +323,7 @@ def main():
         img = img.convert('RGBA')
         
         # Créer le fond avec la couleur désirée
-        background_color = params.get("background_color", "#000000")
+        background_color = params.get("background_color", "#ffffff")
         bg_rgb = hex_to_rgb(background_color)
         
         # Créer une nouvelle image avec le fond coloré
@@ -333,42 +333,62 @@ def main():
         if img.size != (500, 500):
             img = img.resize((500, 500), Image.Resampling.LANCZOS)
         
-        # Si on avait utilisé #010101 au lieu de #000000, le reconvertir
-        original_color = params.get("color", "#0070f3")
-        if original_color.lower() == "#000000":
-            # Remplacer les pixels #010101 par du vrai noir
-            data = img.getdata()
-            new_data = []
-            for item in data:
-                if len(item) >= 3:
-                    # Si c'est notre couleur de substitution (#010101), la remplacer par du noir
-                    if item[0] <= 5 and item[1] <= 5 and item[2] <= 5 and not (item[0] > 240 and item[1] > 240 and item[2] > 240):
-                        new_data.append((0, 0, 0, 255) if len(item) == 4 else (0, 0, 0))
-                    elif item[0] > 240 and item[1] > 240 and item[2] > 240:
-                        new_data.append((255, 255, 255, 0) if len(item) == 4 else (255, 255, 255))  # Fond transparent
+        # Traitement amélioré de la transparence avec anti-aliasing
+        if background_color.lower() != "#ffffff":
+            # Si on avait utilisé #010101 au lieu de #000000, le reconvertir
+            original_color = params.get("color", "#0070f3")
+            if original_color.lower() == "#000000":
+                # Remplacer les pixels #010101 par du vrai noir
+                data = img.getdata()
+                new_data = []
+                for item in data:
+                    if len(item) >= 3:
+                        # Si c'est notre couleur de substitution (#010101), la remplacer par du noir
+                        if item[0] <= 5 and item[1] <= 5 and item[2] <= 5 and not (item[0] >= 250 and item[1] >= 250 and item[2] >= 250):
+                            new_data.append((0, 0, 0, 255) if len(item) == 4 else (0, 0, 0))
+                        elif item[0] >= 250 and item[1] >= 250 and item[2] >= 250:
+                            new_data.append((255, 255, 255, 0) if len(item) == 4 else (255, 255, 255))  # Fond transparent
+                        else:
+                            new_data.append(item)
                     else:
                         new_data.append(item)
-                else:
-                    new_data.append(item)
-            img.putdata(new_data)
+                img.putdata(new_data)
+            else:
+                # Traitement normal avec seuil plus strict pour le blanc
+                data = img.getdata()
+                new_data = []
+                for item in data:
+                    if len(item) >= 3:
+                        # Seuil plus strict : considérer comme fond seulement si très proche du blanc pur
+                        if item[0] >= 250 and item[1] >= 250 and item[2] >= 250:
+                            # Calculer l'alpha basé sur la distance au blanc pur pour un meilleur anti-aliasing
+                            distance_from_white = max(255 - item[0], 255 - item[1], 255 - item[2])
+                            if distance_from_white < 5:  # Très proche du blanc
+                                alpha = 0  # Complètement transparent
+                            else:
+                                alpha = min(255, distance_from_white * 50)  # Partiellement transparent
+                            new_data.append((item[0], item[1], item[2], alpha))
+                        else:
+                            # Garder le motif opaque
+                            new_data.append(item if len(item) == 4 else item + (255,))
+                    else:
+                        new_data.append(item)
+                img.putdata(new_data)
+            
+            # Appliquer un léger flou pour réduire les artefacts de bord
+            img = img.filter(ImageFilter.GaussianBlur(radius=0.5))
+            
+            # Coller sur le fond coloré
+            final_img.paste(img, (0, 0), img)
+            final_img.save('output.png', 'PNG')
         else:
-            # Traitement normal - remplacer le blanc par la transparence
-            data = img.getdata()
-            new_data = []
-            for item in data:
-                if len(item) >= 3 and item[0] > 240 and item[1] > 240 and item[2] > 240:
-                    new_data.append((255, 255, 255, 0))  # Transparent
-                else:
-                    new_data.append(item if len(item) == 4 else item + (255,))
-            img.putdata(new_data)
-        
-        # Coller sur le fond coloré
-        final_img.paste(img, (0, 0), img)
-        final_img.save('output.png', 'PNG')
+            # Fond blanc : pas de traitement spécial nécessaire
+            img_rgb = img.convert('RGB')
+            img_rgb.save('output.png', 'PNG')
         
     except Exception as e:
         # Fallback : créer une image simple avec fond coloré
-        background_color = params.get("background_color", "#000000")
+        background_color = params.get("background_color", "#ffffff")
         bg_rgb = hex_to_rgb(background_color)
         fallback_img = Image.new('RGB', (500, 500), bg_rgb)
         fallback_img.save('output.png', 'PNG')

@@ -2,7 +2,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Download, ImageIcon, Loader2, Palette, Sun, Moon } from "lucide-react"
+import { Download, ImageIcon, Loader2, Palette, Sun, Moon, Info } from "lucide-react"
 
 const GeometricPatternGenerator = () => {
   const [mode, setMode] = useState<"geometric" | "fractal" | "spiral">("geometric")
@@ -28,7 +28,7 @@ const GeometricPatternGenerator = () => {
     gradient_end: "#ff6b6b",
     glow: false,
     glow_intensity: 0.5,
-    background_color: "#000000",
+    background_color: "#ffffff", // Blanc par défaut
   })
 
   const [imgSrc, setImgSrc] = useState<string | null>(null)
@@ -482,17 +482,17 @@ const GeometricPatternGenerator = () => {
                       <div className="badge font-mono">{params.background_color}</div>
                       <button
                         type="button"
-                        onClick={() => setParams((prev) => ({ ...prev, background_color: "#000000" }))}
-                        className="btn btn-outline text-xs px-2 py-1"
-                      >
-                        Noir
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => setParams((prev) => ({ ...prev, background_color: "#ffffff" }))}
                         className="btn btn-outline text-xs px-2 py-1"
                       >
                         Blanc
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setParams((prev) => ({ ...prev, background_color: "#000000" }))}
+                        className="btn btn-outline text-xs px-2 py-1"
+                      >
+                        Noir
                       </button>
                     </div>
                   </div>
@@ -703,6 +703,10 @@ const GeometricPatternGenerator = () => {
           </Link>
           <Link href="/superposition" className="nav-link">
             Superposer des motifs
+          </Link>
+          <Link href="/informations" className="nav-link">
+            <Info className="mr-2 h-4 w-4" />
+            Informations & Installation
           </Link>
         </div>
       </div>

@@ -95,8 +95,8 @@ def generate_pattern_with_params(params):
         img = Image.open('output.png')
         
         # Appliquer la couleur de fond personnalisée
-        background_color = params.get('background_color', '#000000')
-        if background_color != '#000000':  # Si ce n'est pas noir (défaut)
+        background_color = params.get('background_color', '#ffffff')
+        if background_color != '#ffffff':  # Si ce n'est pas blanc (défaut)
             # Convertir la couleur hex en RGB
             bg_rgb = tuple(int(background_color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
             
@@ -107,15 +107,20 @@ def generate_pattern_with_params(params):
             # Créer une nouvelle image avec le fond coloré
             new_img = Image.new('RGB', img.size, bg_rgb)
             
-            # Remplacer le fond blanc par la transparence (pas le noir qui est le motif)
+            # Traitement amélioré de la transparence
             data = img.getdata()
             new_data = []
             for item in data:
-                # Si le pixel est blanc ou très clair (fond), le rendre transparent
-                if len(item) >= 3 and item[0] > 240 and item[1] > 240 and item[2] > 240:
-                    new_data.append((item[0], item[1], item[2], 0))  # Transparent
+                if len(item) >= 3:
+                    # Seuil plus strict pour détecter le blanc (fond)
+                    # Considérer comme fond si très proche du blanc
+                    if item[0] >= 250 and item[1] >= 250 and item[2] >= 250:
+                        new_data.append((255, 255, 255, 0))  # Transparent
+                    else:
+                        # Garder le motif opaque
+                        new_data.append(item if len(item) == 4 else item + (255,))
                 else:
-                    new_data.append(item if len(item) == 4 else item + (255,))  # Garder le motif opaque
+                    new_data.append(item)
             
             img.putdata(new_data)
             
@@ -156,7 +161,7 @@ def generate_endpoint():
         
         # Paramètres communs
         color = data.get("color", "#0070f3")
-        background_color = data.get("background_color", "#000000")
+        background_color = data.get("background_color", "#ffffff")  # Blanc par défaut
         gradient = data.get("gradient", False)
         gradient_start = data.get("gradient_start", "#0070f3")
         gradient_end = data.get("gradient_end", "#ff6b6b")
